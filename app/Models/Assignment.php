@@ -43,6 +43,10 @@ class Assignment extends Model
 
     public function getIsOverdueAttribute(): bool
     {
+        if (!$this->due_date) {
+            return false;
+        }
+        
         return $this->due_date->isPast();
     }
 }

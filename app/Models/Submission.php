@@ -39,6 +39,10 @@ class Submission extends Model
 
     public function getIsLateAttribute(): bool
     {
+        if (!$this->assignment->due_date || !$this->submitted_at) {
+            return false;
+        }
+        
         return $this->submitted_at->isAfter($this->assignment->due_date);
     }
 }
