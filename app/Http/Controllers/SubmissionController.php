@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SubmissionController extends Controller
 {
+    // Siswa mengumpulkan tugas
     public function store(Request $request, ClassModel $class, Assignment $assignment)
     {
         if (!$this->userHasAccess($class) || $assignment->class_id !== $class->id) {
@@ -31,7 +32,8 @@ class SubmissionController extends Controller
         $data = [
             'assignment_id' => $assignment->id,
             'user_id' => Auth::id(),
-            'content' => $request->content,
+            // PERBAIKAN LINE 35: Gunakan input() agar tidak merah
+            'content' => $request->input('content'), 
             'submitted_at' => now(),
         ];
 
@@ -49,8 +51,10 @@ class SubmissionController extends Controller
         return back()->with('success', 'Assignment submitted successfully!');
     }
 
+    // Siswa mengedit tugas mereka sendiri
     public function update(Request $request, ClassModel $class, Assignment $assignment, Submission $submission)
     {
+        // Cek kepemilikan (User hanya bisa edit punya sendiri)
         if ($submission->user_id !== Auth::id()) {
             abort(403, 'You can only edit your own submissions.');
         }
@@ -66,7 +70,8 @@ class SubmissionController extends Controller
         ]);
 
         $data = [
-            'content' => $request->content,
+            // PERBAIKAN LINE 72: Gunakan input() agar tidak merah
+            'content' => $request->input('content'),
             'submitted_at' => now(),
         ];
 
@@ -89,11 +94,19 @@ class SubmissionController extends Controller
         return back()->with('success', 'Submission updated successfully!');
     }
 
+    // Download file tugas (Guru bisa semua, Siswa cuma punya sendiri)
     public function download(ClassModel $class, Assignment $assignment, Submission $submission)
     {
         if (!$this->userHasAccess($class) || $assignment->class_id !== $class->id) {
             abort(403, 'You do not have access to this submission.');
         }
+
+        // --- SECURITY FIX: Privacy Check ---
+        // Jika BUKAN Guru DAN BUKAN pemilik file, tolak akses.
+        if (!Auth::user()->isTeacher() && $submission->user_id !== Auth::id()) {
+            abort(403, 'Anda tidak memiliki hak akses untuk melihat file ini.');
+        }
+        // -----------------------------------
 
         if (!$submission->file_path) {
             abort(404, 'No file attached to this submission.');
@@ -102,11 +115,18 @@ class SubmissionController extends Controller
         return Storage::disk('public')->download($submission->file_path, $submission->file_name);
     }
 
+    // Guru memberikan nilai (HANYA GURU)
     public function grade(Request $request, ClassModel $class, Assignment $assignment, Submission $submission)
     {
         if (!$this->userHasAccess($class) || $assignment->class_id !== $class->id) {
             abort(403, 'You do not have access to grade this submission.');
         }
+
+        // --- SECURITY FIX: RBAC Check ---
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang dapat memberikan nilai.');
+        }
+        // --------------------------------
 
         $request->validate([
             'grade' => 'required|integer|min:0|max:' . $assignment->max_points,
@@ -114,8 +134,9 @@ class SubmissionController extends Controller
         ]);
 
         $submission->update([
-            'grade' => $request->grade,
-            'feedback' => $request->feedback,
+            // Gunakan input() juga di sini agar konsisten
+            'grade' => $request->input('grade'),
+            'feedback' => $request->input('feedback'),
         ]);
 
         return back()->with('success', 'Submission graded successfully!');

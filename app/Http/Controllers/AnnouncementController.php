@@ -15,6 +15,10 @@ class AnnouncementController extends Controller
             abort(403, 'You do not have access to this class.');
         }
 
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang boleh membuat pengumuman.');
+        }
+
         $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'required|string|max:2000',
@@ -24,7 +28,7 @@ class AnnouncementController extends Controller
             'class_id' => $class->id,
             'user_id' => Auth::id(),
             'title' => $request->title,
-            'content' => $request->content,
+            'content' => $request->input('content'),
         ]);
 
         return back()->with('success', 'Announcement posted successfully!');

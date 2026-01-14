@@ -12,9 +12,14 @@
                 <div class="p-6 text-gray-900">
                     <h3 class="text-lg font-medium mb-4">Quick Actions</h3>
                     <div class="flex flex-wrap gap-4">
-                        <a href="{{ route('classes.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Create Class
-                        </a>
+                        {{-- HANYA GURU YANG LIHAT TOMBOL INI --}}
+                        @if(Auth::user()->isTeacher())
+                            <a href="{{ route('classes.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                Create Class
+                            </a>
+                        @endif
+
+                        {{-- TOMBOL JOIN BISA DILIHAT SEMUA (ATAU KHUSUS SISWA) --}}
                         <button onclick="document.getElementById('joinClassModal').classList.remove('hidden')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
                             Join Class
                         </button>

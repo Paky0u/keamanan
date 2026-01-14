@@ -20,11 +20,17 @@ class ClassController extends Controller
 
     public function create()
     {
+        if (! Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang bisa membuat kelas.');
+        }
         return view('classes.create');
     }
 
     public function store(Request $request)
     {
+        if (! Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang bisa membuat kelas.');
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'subject' => 'required|string|max:255',

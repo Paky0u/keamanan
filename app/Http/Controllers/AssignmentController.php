@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Assignment;
 use App\Models\ClassModel;
-use App\Models\Submission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class AssignmentController extends Controller
 {
+    // Menampilkan daftar tugas (Bisa diakses Guru & Siswa)
     public function index(ClassModel $class)
     {
         if (!$this->userHasAccess($class)) {
@@ -22,20 +22,34 @@ class AssignmentController extends Controller
         return view('assignments.index', compact('class', 'assignments'));
     }
 
+    // Form pembuatan tugas (HANYA GURU)
     public function create(ClassModel $class)
     {
         if (!$this->userHasAccess($class)) {
             abort(403, 'You do not have access to this class.');
         }
 
+        // --- SECURITY FIX: Cek Role Guru ---
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang dapat membuat tugas.');
+        }
+        // -----------------------------------
+
         return view('assignments.create', compact('class'));
     }
 
+    // Proses simpan tugas baru (HANYA GURU)
     public function store(Request $request, ClassModel $class)
     {
         if (!$this->userHasAccess($class)) {
             abort(403, 'You do not have access to this class.');
         }
+
+        // --- SECURITY FIX: Cek Role Guru ---
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang dapat membuat tugas.');
+        }
+        // -----------------------------------
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -57,6 +71,7 @@ class AssignmentController extends Controller
             ->with('success', 'Assignment created successfully!');
     }
 
+    // Detail tugas (Bisa diakses Guru & Siswa)
     public function show(ClassModel $class, Assignment $assignment)
     {
         if (!$this->userHasAccess($class) || $assignment->class_id !== $class->id) {
@@ -64,25 +79,43 @@ class AssignmentController extends Controller
         }
 
         $assignment->load(['user', 'submissions.user']);
+        
+        // Mengambil submission user yang sedang login (untuk siswa melihat status tugasnya)
         $userSubmission = $assignment->submissions()->where('user_id', Auth::id())->first();
         
         return view('assignments.show', compact('class', 'assignment', 'userSubmission'));
     }
 
+    // Form edit tugas (HANYA GURU)
     public function edit(ClassModel $class, Assignment $assignment)
     {
+        // Cek kepemilikan
         if ($assignment->user_id !== Auth::id()) {
             abort(403, 'You can only edit your own assignments.');
         }
+
+        // --- SECURITY FIX: Cek Role Guru ---
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang dapat mengedit tugas.');
+        }
+        // -----------------------------------
 
         return view('assignments.edit', compact('class', 'assignment'));
     }
 
+    // Proses update tugas (HANYA GURU)
     public function update(Request $request, ClassModel $class, Assignment $assignment)
     {
+        // Cek kepemilikan
         if ($assignment->user_id !== Auth::id()) {
             abort(403, 'You can only edit your own assignments.');
         }
+
+        // --- SECURITY FIX: Cek Role Guru ---
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang dapat mengupdate tugas.');
+        }
+        // -----------------------------------
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -97,11 +130,19 @@ class AssignmentController extends Controller
             ->with('success', 'Assignment updated successfully!');
     }
 
+    // Hapus tugas (HANYA GURU)
     public function destroy(ClassModel $class, Assignment $assignment)
     {
+        // Cek kepemilikan
         if ($assignment->user_id !== Auth::id()) {
             abort(403, 'You can only delete your own assignments.');
         }
+
+        // --- SECURITY FIX: Cek Role Guru ---
+        if (!Auth::user()->isTeacher()) {
+            abort(403, 'Akses ditolak. Hanya Guru yang dapat menghapus tugas.');
+        }
+        // -----------------------------------
 
         // Delete all submission files
         foreach ($assignment->submissions as $submission) {
