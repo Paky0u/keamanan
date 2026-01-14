@@ -21,18 +21,21 @@ class DemoSeeder extends Seeder
             'name' => 'John Teacher',
             'email' => 'teacher@example.com',
             'password' => Hash::make('password'),
+            'role' => 'teacher',
         ]);
 
         $student1 = User::create([
             'name' => 'Alice Student',
             'email' => 'alice@example.com',
             'password' => Hash::make('password'),
+            'role' => 'student',
         ]);
 
         $student2 = User::create([
             'name' => 'Bob Student',
             'email' => 'bob@example.com',
             'password' => Hash::make('password'),
+            'role' => 'student',
         ]);
 
         // Create demo classes
