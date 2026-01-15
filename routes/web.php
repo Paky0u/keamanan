@@ -9,6 +9,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubmissionController;
 use Illuminate\Support\Facades\Route;
 
+use App\Http\Controllers\OTPController;
+
 Route::get('/', function () {
     return view('welcome');
 });
@@ -73,6 +75,14 @@ Route::middleware('auth')->group(function () {
         ->name('submissions.download');
     Route::post('/classes/{class}/assignments/{assignment}/submissions/{submission}/grade', [SubmissionController::class, 'grade'])
         ->name('submissions.grade');
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/verify-otp', [OTPController::class, 'show'])->name('otp.verify');
+        Route::post('/verify-otp', [OTPController::class, 'verify'])->name('otp.verify.store');
+
+    Route::get('/dashboard', function () { ... })
+        ->middleware(['auth', 'verified', 'otp']) // <--- Tambah 'otp'
+        ->name('dashboard');
 });
 
 require __DIR__.'/auth.php';
