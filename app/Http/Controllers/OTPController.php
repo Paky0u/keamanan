@@ -21,21 +21,18 @@ class OTPController extends Controller
 
         $user = Auth::user();
 
-        // 1. Cek Apakah OTP Cocok
-        if ($user->otp_code !== $request->otp) {
-            return back()->withErrors(['otp' => 'Kode OTP salah!']);
+        // Cek apakah OTP cocok dan belum kadaluarsa
+        if ($user->otp_code == $request->otp && Carbon::now()->lessThanOrEqualTo($user->otp_expires_at)) {
+            $user->update([
+                'otp_code' => null,
+                'otp_expires_at' => null,
+            ]);
+
+            $request->session()->forget('auth.otp_needed');
+
+            return redirect()->route('dashboard');
         }
 
-        // 2. Cek Apakah Kadaluarsa
-        if (Carbon::now()->greaterThan($user->otp_expires_at)) {
-            return back()->withErrors(['otp' => 'Kode OTP sudah kadaluarsa. Silakan login ulang.']);
-        }
-
-        // 3. Jika Sukses: Hapus OTP dari DB & Session Flag
-        $user->update(['otp_code' => null, 'otp_expires_at' => null]);
-        $request->session()->forget('auth.otp_needed');
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard'));
+        return back()->withErrors(['otp' => 'Kode OTP salah atau sudah kadaluarsa.']);
     }
 }
