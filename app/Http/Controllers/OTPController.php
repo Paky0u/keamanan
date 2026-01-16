@@ -34,7 +34,8 @@ class OTPController extends Controller
         }
 
         // 3. CEK APAKAH KODE SALAH
-        if ($user->otp_code !== $request->otp) {
+        // Gunakan casting ke string agar aman (Input string vs DB Integer)
+        if ((string) $user->otp_code !== (string) $request->otp) {
             // Tambah hitungan salah
             $user->increment('otp_attempts');
             $sisa = 3 - $user->otp_attempts;

@@ -9,6 +9,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\OTPController; 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\VulnerableController;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -62,6 +66,77 @@ Route::middleware('auth')->group(function () {
     Route::put('/classes/{class}/assignments/{assignment}/submissions/{submission}', [SubmissionController::class, 'update'])->name('submissions.update');
     Route::get('/classes/{class}/assignments/{assignment}/submissions/{submission}/download', [SubmissionController::class, 'download'])->name('submissions.download');
     Route::post('/classes/{class}/assignments/{assignment}/submissions/{submission}/grade', [SubmissionController::class, 'grade'])->name('submissions.grade');
+
+    Route::get('/vulnerable', [VulnerableController::class, 'index']);
+    Route::get('/vulnerable/search', [VulnerableController::class, 'search']);
+
+    
 });
 
 require __DIR__.'/auth.php';
+
+// --- TARUH DI PALING BAWAH ROUTES/WEB.PHP ---
+Route::get('/demo-sql', function (Illuminate\Http\Request $request) {
+    $email = $request->input('email');
+    $password = $request->input('password'); // Ambil input password
+    
+    $users = [];
+    $error = null;
+    
+    // Jika tombol ditekan
+    if ($request->has('email')) {
+        try {
+            // 1. QUERY VULNERABLE (Cek SQL Injection)
+            // Password di DB ter-hash, jadi login normal pasti gagal di query ini
+            $query = "SELECT * FROM users WHERE email = '$email' AND password = '$password'";
+            $users = Illuminate\Support\Facades\DB::select($query);
+        } catch (\Exception $e) {
+            $error = $e->getMessage();
+        }
+
+        // 2. FALLBACK: CEK LOGIN NORMAL (Support Hashing)
+        // Jika query vulnerable kosong (tidak ada injection), cek login valid Laravel
+        if (empty($users) && !$error) {
+            $user = \App\Models\User::where('email', $email)->first();
+            if ($user && \Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+                $users = [$user];
+            }
+        }
+
+        // --- LOGIKA BARU: REDIRECT KE OTP JIKA LOGIN BERHASIL ---
+        if (!empty($users)) {
+            // Ambil user pertama (Jika SQL Injection 'OR 1=1', biasanya dapat user ID 1 / Admin)
+            // Kita butuh Model Eloquent untuk Auth::login
+            $userId = $users[0]->id;
+            $userModel = \App\Models\User::find($userId);
+
+            if ($userModel) {
+                // 1. Login User secara resmi ke sesi Laravel
+                \Illuminate\Support\Facades\Auth::login($userModel);
+
+                // 2. Generate OTP & Set Session (Simulasi masuk flow 2FA)
+                $otp = rand(100000, 999999);
+                $userModel->update(['otp_code' => $otp, 'otp_expires_at' => now()->addMinutes(5), 'otp_attempts' => 0]);
+                
+                // 3. KIRIM EMAIL OTP (Agar penyerang/tester bisa mendapatkan kodenya)
+                try {
+                    \Illuminate\Support\Facades\Mail::to($userModel->email)->send(new \App\Mail\OTPMail($otp));
+                } catch (\Exception $e) {
+                    // Abaikan jika gagal kirim email (misal tidak ada koneksi internet/SMTP)
+                }
+
+                // Set session agar middleware OTP tahu user ini butuh verifikasi
+                $request->session()->put('auth.otp_needed', true);
+
+                return redirect()->route('otp.verify');
+            }
+        }
+    }
+
+    return view('demo_sql', [
+        'users' => $users, 
+        'input_email' => $email,
+        'input_password' => $password,
+        'error' => $error
+    ]);
+});
