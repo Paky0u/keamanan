@@ -38,7 +38,8 @@ class AuthenticatedSessionController extends Controller
         // 3. Simpan OTP ke Database (Berlaku 5 Menit)
         $user->update([
             'otp_code' => $otp,
-            'otp_expires_at' => Carbon::now()->addMinutes(5),
+            'otp_expires_at' => Carbon::now()->addMinutes(1),
+            'otp_attempts' => 0,
         ]);
 
         // 4. Kirim Email Asli

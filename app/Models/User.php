@@ -26,6 +26,7 @@ class User extends Authenticatable
         'role',
         'otp_code',
         'otp_expires_at',
+        'otp_attempts',
     ];
 
     /**
